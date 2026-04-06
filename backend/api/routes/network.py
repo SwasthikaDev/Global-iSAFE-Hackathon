@@ -1,20 +1,15 @@
 """Network status, agent control, and simulation API routes."""
 
+import os
+
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from typing import Optional
 
 from agent.monitor import get_agent_status, get_all_devices, get_alerts
 from agent.reasoning_core import reasoning_core
 from agent.response_executor import response_executor
 from agent.threat_intel import get_threat_intel
-from simulation.attack_sim import (
-    get_available_scenarios,
-    get_active_scenario,
-    start_scenario,
-    stop_scenario,
-    get_scenario_log,
-)
+
+SIMULATION_MODE: bool = os.getenv("SIMULATION_MODE", "true").lower() == "true"
 
 router = APIRouter(prefix="/network", tags=["network"])
 
@@ -34,6 +29,7 @@ async def get_network_status():
         "alert_count": len(alerts),
         "isolated_devices": response_executor.get_isolated_devices(),
         "blocked_ips": response_executor.get_blocked_ips(),
+        "mode": "simulation" if SIMULATION_MODE else "real",
     }
 
 
@@ -54,17 +50,38 @@ async def get_threat_intel_summary():
 @router.get("/action-log")
 async def get_action_log():
     """Get the full history of autonomous actions taken by SHIELD-IoT."""
+    log = response_executor.get_action_log()
     return {
-        "actions": response_executor.get_action_log(),
-        "total": len(response_executor.get_action_log()),
+        "actions": log,
+        "total": len(log),
     }
 
 
-# --- Simulation / Demo endpoints ---
+# ── Simulation / Demo endpoints ───────────────────────────────────────────────
+# In real-data mode these endpoints return a 400 to make the behaviour explicit.
+
+def _require_sim_mode():
+    if not SIMULATION_MODE:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Attack simulation is disabled in real-data mode "
+                "(SIMULATION_MODE=false). Set SIMULATION_MODE=true in .env to "
+                "use synthetic attack scenarios."
+            ),
+        )
+
 
 @router.get("/simulation/scenarios")
 async def list_scenarios():
     """List all available attack simulation scenarios."""
+    if not SIMULATION_MODE:
+        return {
+            "scenarios": [],
+            "active_scenario": None,
+            "message": "Simulation disabled — running on real network data.",
+        }
+    from simulation.attack_sim import get_active_scenario, get_available_scenarios
     return {
         "scenarios": get_available_scenarios(),
         "active_scenario": get_active_scenario(),
@@ -74,6 +91,8 @@ async def list_scenarios():
 @router.post("/simulation/start/{scenario_id}")
 async def start_attack_scenario(scenario_id: str):
     """Start a simulated attack scenario for demonstration purposes."""
+    _require_sim_mode()
+    from simulation.attack_sim import start_scenario
     result = await start_scenario(scenario_id)
     if not result["success"]:
         raise HTTPException(status_code=400, detail=result["message"])
@@ -83,12 +102,21 @@ async def start_attack_scenario(scenario_id: str):
 @router.post("/simulation/stop")
 async def stop_attack_scenario():
     """Stop the currently running attack scenario."""
+    _require_sim_mode()
+    from simulation.attack_sim import stop_scenario
     return await stop_scenario()
 
 
 @router.get("/simulation/log")
 async def get_simulation_log():
     """Get the simulation event log."""
+    if not SIMULATION_MODE:
+        return {
+            "log": [],
+            "active_scenario": None,
+            "message": "Simulation disabled — running on real network data.",
+        }
+    from simulation.attack_sim import get_active_scenario, get_scenario_log
     return {
         "log": get_scenario_log(),
         "active_scenario": get_active_scenario(),

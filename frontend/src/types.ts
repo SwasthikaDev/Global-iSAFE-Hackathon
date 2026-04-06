@@ -76,6 +76,7 @@ export interface NetworkStatus_Full {
   alert_count: number;
   isolated_devices: string[];
   blocked_ips: string[];
+  mode?: "simulation" | "real";
 }
 
 export interface AttackScenario {

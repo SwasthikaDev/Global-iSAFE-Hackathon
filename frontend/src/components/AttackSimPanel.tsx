@@ -1,4 +1,4 @@
-import { Play, Square, Zap, AlertTriangle } from "lucide-react";
+import { Play, Square, Zap, Wifi, AlertTriangle } from "lucide-react";
 import { useState } from "react";
 import { api } from "../api";
 import { SeverityBadge } from "./SeverityBadge";
@@ -8,9 +8,10 @@ interface Props {
   scenarios: AttackScenario[];
   activeScenario: unknown;
   onScenarioChange: () => void;
+  dataMode?: "simulation" | "real";
 }
 
-export function AttackSimPanel({ scenarios, activeScenario, onScenarioChange }: Props) {
+export function AttackSimPanel({ scenarios, activeScenario, onScenarioChange, dataMode = "simulation" }: Props) {
   const [loading, setLoading] = useState<string | null>(null);
 
   const handleStart = async (id: string) => {
@@ -39,6 +40,64 @@ export function AttackSimPanel({ scenarios, activeScenario, onScenarioChange }: 
 
   const active = activeScenario as { id?: string; name?: string } | null;
 
+  // ── Real-data mode panel ────────────────────────────────────────────────────
+  if (dataMode === "real") {
+    return (
+      <div className="card">
+        <div className="flex items-center gap-2 mb-4">
+          <Wifi className="w-4 h-4 text-emerald-600" />
+          <h2 className="section-title">Live Network Monitor</h2>
+          <span className="ml-auto flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs font-medium text-emerald-700">Real Data</span>
+          </span>
+        </div>
+
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 mb-4">
+          <p className="text-xs text-emerald-800 leading-relaxed font-medium mb-1">
+            Monitoring your real network
+          </p>
+          <p className="text-xs text-emerald-700 leading-relaxed">
+            SHIELD-IoT is capturing live TCP connections and I/O traffic from this
+            machine via the OS kernel. Every device visible in your ARP cache is
+            being profiled and watched for anomalies.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs py-2 border-b border-slate-100">
+            <span className="text-slate-500">Traffic source</span>
+            <span className="font-medium text-slate-700">psutil / OS kernel</span>
+          </div>
+          <div className="flex items-center justify-between text-xs py-2 border-b border-slate-100">
+            <span className="text-slate-500">Device discovery</span>
+            <span className="font-medium text-slate-700">ARP cache scan</span>
+          </div>
+          <div className="flex items-center justify-between text-xs py-2 border-b border-slate-100">
+            <span className="text-slate-500">Threat intel</span>
+            <span className="font-medium text-slate-700">Live IP reputation checks</span>
+          </div>
+          <div className="flex items-center justify-between text-xs py-2">
+            <span className="text-slate-500">ML model</span>
+            <span className="font-medium text-slate-700">Training on real traffic</span>
+          </div>
+        </div>
+
+        <div className="mt-4 border-t border-slate-200 pt-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-600 mt-0.5 shrink-0" />
+            <p className="text-xs text-slate-500">
+              Attack simulations are disabled in real-data mode. Set{" "}
+              <code className="bg-slate-100 px-1 rounded">SIMULATION_MODE=true</code>{" "}
+              in <code className="bg-slate-100 px-1 rounded">.env</code> to switch back to demo mode.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Simulation mode panel ───────────────────────────────────────────────────
   return (
     <div className="card">
       <div className="flex items-center gap-2 mb-4">

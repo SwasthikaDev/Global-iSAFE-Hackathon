@@ -30,6 +30,7 @@ export default function App() {
   const [criticalCount, setCriticalCount] = useState(0);
   const [highCount, setHighCount] = useState(0);
   const [activeTab, setActiveTab] = useState<"alerts" | "devices">("alerts");
+  const [dataMode, setDataMode] = useState<"simulation" | "real">("simulation");
 
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -49,6 +50,7 @@ export default function App() {
       setNetworkStatus(netRes.network_summary.overall_status);
       setThreatLevel(netRes.network_summary.threat_level);
       setNetworkSummary(netRes.network_summary.summary);
+      setDataMode(netRes.mode === "real" ? "real" : "simulation");
       setActionLog(actRes.actions);
     } catch (e) {
       console.error("Data load error:", e);
@@ -187,6 +189,7 @@ export default function App() {
               scenarios={scenarios}
               activeScenario={activeScenario}
               onScenarioChange={() => { loadScenarios(); loadData(); }}
+              dataMode={dataMode}
             />
 
             {/* Tabs */}
@@ -225,7 +228,9 @@ export default function App() {
                       <div className="text-4xl mb-3">🛡️</div>
                       <p className="text-sm font-medium text-slate-800 mb-1">All Clear</p>
                       <p className="text-xs text-slate-500">
-                        No active threats detected. Run an attack simulation to see SHIELD-IoT in action.
+                        {dataMode === "real"
+                          ? "No threats detected on your real network. SHIELD-IoT is actively monitoring live traffic."
+                          : "No active threats detected. Run an attack simulation to see SHIELD-IoT in action."}
                       </p>
                     </div>
                   ) : (

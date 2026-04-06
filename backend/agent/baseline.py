@@ -80,10 +80,56 @@ DEVICE_TYPE_DEFAULTS = {
         "protocols": ["DNS", "NTP", "HTTPS", "HTTP"],
         "expected_outbound_ratio": 0.5,
     },
+    # ── Real device types (non-IoT) ───────────────────────────────────────────
+    "workstation": {
+        "allowed_destinations": [],          # Learned dynamically from traffic
+        "max_bytes_per_minute": 100_000_000, # 100 MB/min (streaming, updates)
+        "max_connections_per_minute": 300,
+        "typical_packet_size_bytes": 800,
+        "active_hours": list(range(0, 24)),
+        "protocols": ["HTTPS", "HTTP", "SSH", "SMTP", "IMAP"],
+        "expected_outbound_ratio": 0.8,
+    },
+    "mobile": {
+        "allowed_destinations": [],
+        "max_bytes_per_minute": 20_000_000,  # 20 MB/min
+        "max_connections_per_minute": 100,
+        "typical_packet_size_bytes": 800,
+        "active_hours": list(range(6, 24)),
+        "protocols": ["HTTPS", "HTTP"],
+        "expected_outbound_ratio": 0.6,
+    },
+    "printer": {
+        "allowed_destinations": [],
+        "max_bytes_per_minute": 2_000_000,
+        "max_connections_per_minute": 20,
+        "typical_packet_size_bytes": 600,
+        "active_hours": list(range(6, 22)),
+        "protocols": ["HTTPS", "HTTP", "IPP"],
+        "expected_outbound_ratio": 0.4,
+    },
+    "iot_controller": {
+        "allowed_destinations": [],
+        "max_bytes_per_minute": 1_000_000,
+        "max_connections_per_minute": 30,
+        "typical_packet_size_bytes": 400,
+        "active_hours": list(range(0, 24)),
+        "protocols": ["HTTPS", "MQTT"],
+        "expected_outbound_ratio": 0.5,
+    },
+    "smart_home": {
+        "allowed_destinations": [],
+        "max_bytes_per_minute": 2_000_000,
+        "max_connections_per_minute": 20,
+        "typical_packet_size_bytes": 400,
+        "active_hours": list(range(0, 24)),
+        "protocols": ["HTTPS", "MQTT"],
+        "expected_outbound_ratio": 0.5,
+    },
     "unknown": {
         "allowed_destinations": [],
-        "max_bytes_per_minute": 100_000,
-        "max_connections_per_minute": 20,
+        "max_bytes_per_minute": 10_000_000,  # 10 MB/min (more reasonable default)
+        "max_connections_per_minute": 50,
         "typical_packet_size_bytes": 500,
         "active_hours": list(range(0, 24)),
         "protocols": ["HTTPS"],
@@ -191,13 +237,24 @@ class DeviceBaseline:
                 )
 
         # --- Destination anomaly ---
-        dest_known = any(
-            allowed in destination or destination in allowed
-            for allowed in self.allowed_destinations
-        ) if destination else True
-        scores["destination"] = 0.0 if dest_known else 0.7
-        if not dest_known and destination:
-            details.append(f"Unusual destination: {destination} not in device whitelist")
+        # Only flag unknown destinations for IoT/smart-home devices that have
+        # a well-known, constrained destination set.  General-purpose devices
+        # (workstation, mobile, router) connect to the whole internet — trying
+        # to whitelist them produces constant false positives.
+        _destination_check_types = {
+            "smart_thermostat", "ip_camera", "smart_speaker", "baby_monitor",
+            "smart_tv", "smart_plug", "iot_controller", "smart_home",
+        }
+        if self.device_type in _destination_check_types and self.allowed_destinations:
+            dest_known = any(
+                allowed in destination or destination in allowed
+                for allowed in self.allowed_destinations
+            ) if destination else True
+            scores["destination"] = 0.0 if dest_known else 0.7
+            if not dest_known and destination:
+                details.append(f"Unusual destination: {destination} not in device whitelist")
+        else:
+            scores["destination"] = 0.0  # Skip destination check for general devices
 
         # --- Time-of-day anomaly ---
         scores["time_of_day"] = 0.0 if hour in self.active_hours else 0.5
@@ -221,7 +278,7 @@ class DeviceBaseline:
 
         # Use a higher threshold until we have enough observations to trust the baseline.
         # This prevents noisy false positives during the learning phase.
-        threshold = 0.35 if self.is_fully_learned else 0.55
+        threshold = 0.35 if self.is_fully_learned else 0.65
 
         return {
             "composite_score": round(composite, 4),
