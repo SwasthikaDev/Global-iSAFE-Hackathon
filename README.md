@@ -189,8 +189,7 @@ See [`docs/deployment.md`](docs/deployment.md) for full ISP deployment guidance 
 - OpenWrt router integration
 - Real passive traffic capture (replacing the simulator)
 
-Image: 
-image.png
+![SHIELD-IoT Dashboard](img1.png)
 
 ---
 
