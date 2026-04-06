@@ -12,31 +12,31 @@ interface Props {
 const statusConfig = {
   secure: {
     icon: ShieldCheck,
-    color: "text-emerald-400",
-    bg: "bg-emerald-500/10 border-emerald-500/30",
+    color: "text-emerald-700",
+    bg: "bg-emerald-50 border-emerald-200",
     label: "SECURE",
     pulse: "bg-emerald-500",
   },
   warning: {
     icon: Shield,
-    color: "text-yellow-400",
-    bg: "bg-yellow-500/10 border-yellow-500/30",
+    color: "text-yellow-700",
+    bg: "bg-yellow-50 border-yellow-200",
     label: "WARNING",
     pulse: "bg-yellow-500",
   },
   threat: {
     icon: ShieldAlert,
-    color: "text-orange-400",
-    bg: "bg-orange-500/10 border-orange-500/30",
+    color: "text-amber-700",
+    bg: "bg-amber-50 border-amber-200",
     label: "THREAT DETECTED",
-    pulse: "bg-orange-500",
+    pulse: "bg-amber-500",
   },
   critical: {
     icon: ShieldX,
-    color: "text-red-400",
-    bg: "bg-red-500/10 border-red-500/30",
+    color: "text-rose-700",
+    bg: "bg-rose-50 border-rose-200",
     label: "CRITICAL",
-    pulse: "bg-red-500",
+    pulse: "bg-rose-500",
   },
 };
 
@@ -45,17 +45,17 @@ export function NetworkStatusHeader({ networkStatus, threatLevel, summary, agent
   const Icon = config.icon;
 
   return (
-    <header className="border-b border-gray-800 bg-gray-950/80 backdrop-blur sticky top-0 z-10">
+    <header className="border-b border-slate-200 bg-white/95 backdrop-blur sticky top-0 z-10">
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
         {/* Logo */}
         <div className="flex items-center gap-3 min-w-0">
           <div className="relative">
-            <Shield className="w-8 h-8 text-shield-400" />
-            <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-shield-400 animate-pulse" />
+            <Shield className="w-8 h-8 text-sky-600" />
+            <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-sky-500 animate-pulse" />
           </div>
           <div>
-            <h1 className="font-bold text-lg text-white leading-none">SHIELD-IoT</h1>
-            <p className="text-xs text-gray-500 leading-none mt-0.5">Autonomous Home Network Defence</p>
+            <h1 className="font-bold text-lg text-slate-900 leading-none">SHIELD-IoT</h1>
+            <p className="text-xs text-slate-500 leading-none mt-0.5">Autonomous Home Network Defence</p>
           </div>
         </div>
 
@@ -74,7 +74,7 @@ export function NetworkStatusHeader({ networkStatus, threatLevel, summary, agent
 
         {/* Summary */}
         {summary && (
-          <p className="text-sm text-gray-400 hidden lg:block flex-1 text-center truncate max-w-md">
+          <p className="text-sm text-slate-500 hidden lg:block flex-1 text-center truncate max-w-md">
             {summary}
           </p>
         )}
@@ -83,11 +83,11 @@ export function NetworkStatusHeader({ networkStatus, threatLevel, summary, agent
         <div className="flex items-center gap-3 shrink-0">
           {agentStatus && (
             <div className="text-right hidden sm:block">
-              <p className="text-xs text-gray-500">Cycles: <span className="text-gray-300">{agentStatus.cycle_count.toLocaleString()}</span></p>
-              <p className="text-xs text-gray-500">Threats: <span className="text-red-400">{agentStatus.threats_detected}</span></p>
+              <p className="text-xs text-slate-500">Cycles: <span className="text-slate-700">{agentStatus.cycle_count.toLocaleString()}</span></p>
+              <p className="text-xs text-slate-500">Threats: <span className="text-rose-600">{agentStatus.threats_detected}</span></p>
             </div>
           )}
-          <div className={`flex items-center gap-1.5 text-xs ${wsConnected ? "text-emerald-400" : "text-gray-600"}`}>
+          <div className={`flex items-center gap-1.5 text-xs ${wsConnected ? "text-emerald-700" : "text-slate-500"}`}>
             {wsConnected ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
             <span className="hidden sm:inline">{wsConnected ? "Live" : "Reconnecting..."}</span>
           </div>

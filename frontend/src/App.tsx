@@ -138,7 +138,7 @@ export default function App() {
   const activeAlerts = alerts.filter((a) => a.status === "active");
 
   return (
-    <div className="min-h-screen bg-gray-950">
+    <div className="min-h-screen bg-slate-50">
       <NetworkStatusHeader
         networkStatus={networkStatus}
         threatLevel={threatLevel}
@@ -161,8 +161,8 @@ export default function App() {
             {/* Devices */}
             <div>
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-semibold text-white">Network Devices</h2>
-                <span className="text-xs text-gray-600">{devices.length} devices</span>
+                <h2 className="section-title">Network Devices</h2>
+                <span className="muted">{devices.length} devices</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2.5">
                 {devices.map((device) => (
@@ -191,17 +191,17 @@ export default function App() {
 
             {/* Tabs */}
             <div>
-              <div className="flex gap-1 mb-3 bg-gray-900 border border-gray-800 rounded-lg p-1 w-fit">
+              <div className="flex gap-1 mb-3 bg-slate-100 border border-slate-200 rounded-lg p-1 w-fit">
                 <button
                   onClick={() => setActiveTab("alerts")}
                   className={`text-xs px-3 py-1.5 rounded-md transition-colors font-medium ${
                     activeTab === "alerts"
-                      ? "bg-gray-700 text-white"
-                      : "text-gray-500 hover:text-gray-300"
+                      ? "bg-white text-slate-800 shadow-sm border border-slate-200"
+                      : "text-slate-500 hover:text-slate-700"
                   }`}
                 >
                   Alerts {activeAlerts.length > 0 && (
-                    <span className="ml-1.5 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5">
+                    <span className="ml-1.5 bg-rose-600 text-white text-xs rounded-full px-1.5 py-0.5">
                       {activeAlerts.length}
                     </span>
                   )}
@@ -210,8 +210,8 @@ export default function App() {
                   onClick={() => setActiveTab("devices")}
                   className={`text-xs px-3 py-1.5 rounded-md transition-colors font-medium ${
                     activeTab === "devices"
-                      ? "bg-gray-700 text-white"
-                      : "text-gray-500 hover:text-gray-300"
+                      ? "bg-white text-slate-800 shadow-sm border border-slate-200"
+                      : "text-slate-500 hover:text-slate-700"
                   }`}
                 >
                   All Activity
@@ -221,10 +221,10 @@ export default function App() {
               {activeTab === "alerts" && (
                 <div className="space-y-2">
                   {activeAlerts.length === 0 ? (
-                    <div className="card border border-gray-800 text-center py-12">
+                    <div className="card text-center py-12">
                       <div className="text-4xl mb-3">🛡️</div>
-                      <p className="text-sm font-medium text-gray-300 mb-1">All Clear</p>
-                      <p className="text-xs text-gray-600">
+                      <p className="text-sm font-medium text-slate-800 mb-1">All Clear</p>
+                      <p className="text-xs text-slate-500">
                         No active threats detected. Run an attack simulation to see SHIELD-IoT in action.
                       </p>
                     </div>
@@ -242,8 +242,8 @@ export default function App() {
                     <AlertCard key={alert.id} alert={alert} onDismiss={handleDismissAlert} />
                   ))}
                   {alerts.length === 0 && (
-                    <div className="card border border-gray-800 text-center py-12">
-                      <p className="text-xs text-gray-600">No activity recorded yet</p>
+                    <div className="card text-center py-12">
+                      <p className="text-xs text-slate-500">No activity recorded yet</p>
                     </div>
                   )}
                 </div>
@@ -253,11 +253,11 @@ export default function App() {
         </div>
 
         {/* Footer */}
-        <footer className="border-t border-gray-800 pt-4 pb-2 text-center">
-          <p className="text-xs text-gray-700">
+        <footer className="border-t border-slate-200 pt-4 pb-2 text-center">
+          <p className="text-xs text-slate-500">
             SHIELD-IoT — Agentic AI for Autonomous Home Network Defence · Track 2: Defend the Digital Citizen · iSAFE Hackathon 2026
           </p>
-          <p className="text-xs text-gray-800 mt-1">
+          <p className="text-xs text-slate-400 mt-1">
             MIT Licence · Powered by Claude API · Open source on GitHub
           </p>
         </footer>

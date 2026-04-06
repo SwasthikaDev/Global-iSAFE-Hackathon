@@ -263,6 +263,8 @@ class NetworkSimulator:
             "source_is_local": True,
             "inbound_mgmt_connections": 0,
             "connection_regularity": round(random.uniform(0.1, 0.4), 2),
+            # Include the normal max so rule conditions can compare against it correctly.
+            "max_bytes_per_minute": profile["bytes_range"][1],
             "is_simulated": True,
             "is_attack": False,
         }

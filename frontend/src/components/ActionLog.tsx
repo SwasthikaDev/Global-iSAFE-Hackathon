@@ -24,25 +24,25 @@ const actionIcon: Record<string, React.ElementType> = {
 };
 
 const actionColor: Record<string, string> = {
-  isolate: "text-red-400 bg-red-900/20",
-  quarantine: "text-purple-400 bg-purple-900/20",
-  block_traffic: "text-orange-400 bg-orange-900/20",
-  alert: "text-yellow-400 bg-yellow-900/20",
-  monitor: "text-blue-400 bg-blue-900/20",
-  restore: "text-emerald-400 bg-emerald-900/20",
+  isolate: "text-rose-700 bg-rose-100",
+  quarantine: "text-violet-700 bg-violet-100",
+  block_traffic: "text-amber-700 bg-amber-100",
+  alert: "text-yellow-700 bg-yellow-100",
+  monitor: "text-sky-700 bg-sky-100",
+  restore: "text-emerald-700 bg-emerald-100",
 };
 
 export function ActionLog({ actions }: Props) {
   return (
-    <div className="card border border-gray-800">
-      <h3 className="text-sm font-semibold text-white mb-4">Autonomous Action Log</h3>
+    <div className="card">
+      <h3 className="section-title mb-4">Autonomous Action Log</h3>
       {actions.length === 0 ? (
-        <p className="text-xs text-gray-600 text-center py-6">No actions taken yet</p>
+        <p className="text-xs text-slate-500 text-center py-6">No actions taken yet</p>
       ) : (
         <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
           {[...actions].reverse().map((action, i) => {
             const Icon = actionIcon[action.action] ?? Eye;
-            const colorClass = actionColor[action.action] ?? "text-gray-400 bg-gray-800/50";
+            const colorClass = actionColor[action.action] ?? "text-slate-600 bg-slate-100";
             const timeAgo = formatDistanceToNow(new Date(action.timestamp), { addSuffix: true });
             return (
               <div key={i} className="flex items-start gap-2.5">
@@ -51,12 +51,12 @@ export function ActionLog({ actions }: Props) {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-medium text-gray-300 capitalize">{action.action.replace("_", " ")}</span>
-                    <span className="text-xs text-gray-600 shrink-0">{timeAgo}</span>
+                    <span className="text-xs font-medium text-slate-700 capitalize">{action.action.replace("_", " ")}</span>
+                    <span className="text-xs text-slate-500 shrink-0">{timeAgo}</span>
                   </div>
-                  <p className="text-xs text-gray-500 truncate">{action.message}</p>
+                  <p className="text-xs text-slate-500 truncate">{action.message}</p>
                   {action.simulated && (
-                    <span className="text-xs text-gray-700">(simulated)</span>
+                    <span className="text-xs text-slate-400">(simulated)</span>
                   )}
                 </div>
               </div>

@@ -34,8 +34,8 @@ export function ThreatChart({ alerts }: Props) {
   }, [alerts]);
 
   return (
-    <div className="card border border-gray-800">
-      <h3 className="text-sm font-semibold text-white mb-4">Threat Activity (Last 10 min)</h3>
+    <div className="card">
+      <h3 className="section-title mb-4">Threat Activity (Last 10 min)</h3>
       <ResponsiveContainer width="100%" height={140}>
         <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
           <defs>
@@ -52,12 +52,12 @@ export function ThreatChart({ alerts }: Props) {
               <stop offset="95%" stopColor="#eab308" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <XAxis dataKey="time" tick={{ fontSize: 10, fill: "#6b7280" }} tickLine={false} axisLine={false} />
-          <YAxis tick={{ fontSize: 10, fill: "#6b7280" }} tickLine={false} axisLine={false} allowDecimals={false} />
+          <XAxis dataKey="time" tick={{ fontSize: 10, fill: "#64748b" }} tickLine={false} axisLine={false} />
+          <YAxis tick={{ fontSize: 10, fill: "#64748b" }} tickLine={false} axisLine={false} allowDecimals={false} />
           <Tooltip
-            contentStyle={{ backgroundColor: "#111827", border: "1px solid #374151", borderRadius: "8px", fontSize: "12px" }}
-            labelStyle={{ color: "#9ca3af" }}
-            itemStyle={{ color: "#d1d5db" }}
+            contentStyle={{ backgroundColor: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "8px", fontSize: "12px" }}
+            labelStyle={{ color: "#475569" }}
+            itemStyle={{ color: "#1e293b" }}
           />
           <Area type="monotone" dataKey="medium" stroke="#eab308" strokeWidth={1.5} fill="url(#medium)" name="Medium" />
           <Area type="monotone" dataKey="high" stroke="#f97316" strokeWidth={1.5} fill="url(#high)" name="High" />

@@ -57,11 +57,12 @@ class ReasoningCore:
 
     def __init__(self):
         api_key = os.getenv("ANTHROPIC_API_KEY", "")
-        if api_key:
+        is_real_key = api_key and not api_key.startswith("your_") and len(api_key) > 20
+        if is_real_key:
             self.client = anthropic.Anthropic(api_key=api_key)
         else:
             self.client = None
-            logger.warning("No ANTHROPIC_API_KEY set — reasoning core in simulation mode")
+            logger.warning("No valid ANTHROPIC_API_KEY — reasoning core in rule-based simulation mode")
 
         self._conversation_history: list = []
         self._incident_log: list = []

@@ -100,7 +100,7 @@ class AnomalyDetector:
         self.model: Optional[IsolationForest] = None
         self.scaler: Optional[StandardScaler] = None
         self._training_buffer: list = []
-        self.MIN_TRAINING_SAMPLES = 30
+        self.MIN_TRAINING_SAMPLES = 80  # need enough samples for a reliable distribution
         self.is_trained = False
         self._load_or_initialise_model()
 
@@ -216,13 +216,24 @@ class AnomalyDetector:
             except Exception:
                 pass
 
-        # Combine results to determine final threat assessment
+        # Combine results to determine final threat assessment.
+        # Require corroboration between layers to reduce false positives:
+        #   - Critical/high rules alone are sufficient (they are precise signatures)
+        #   - ML anomaly only counts when baseline ALSO shows deviation (both signals needed)
+        #   - Standalone ML anomaly with high score (>0.75) is treated as medium
         has_critical_rule = any(m["severity"] == "critical" for m in result["rule_matches"])
         has_high_rule = any(m["severity"] == "high" for m in result["rule_matches"])
         high_baseline = result["baseline_score"] >= 0.55
-        ml_anomaly = result["ml_anomaly"] and result["ml_score"] > 0.6
+        # ML anomaly only counts when the baseline ALSO shows a meaningful deviation.
+        # This prevents the Isolation Forest from generating false positives when it
+        # has only been trained on a small number of samples.
+        corroborated_ml = (
+            result["ml_anomaly"]
+            and result["ml_score"] > 0.6
+            and result["baseline_score"] > 0.20
+        )
 
-        if has_critical_rule or (ml_anomaly and high_baseline):
+        if has_critical_rule or (corroborated_ml and high_baseline):
             result["is_threat"] = True
             result["severity"] = "critical"
             result["recommended_action"] = "isolate"
@@ -230,7 +241,7 @@ class AnomalyDetector:
             result["is_threat"] = True
             result["severity"] = "high"
             result["recommended_action"] = "block_traffic"
-        elif result["baseline_anomaly"] or ml_anomaly:
+        elif result["baseline_anomaly"] or corroborated_ml:
             result["is_threat"] = True
             result["severity"] = "medium"
             result["recommended_action"] = "alert"

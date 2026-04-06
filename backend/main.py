@@ -41,6 +41,7 @@ _ws_connections: Set[WebSocket] = set()
 
 async def broadcast(message: dict) -> None:
     """Broadcast a message to all connected WebSocket clients."""
+    global _ws_connections
     if not _ws_connections:
         return
     payload = json.dumps(message, default=str)

@@ -219,11 +219,15 @@ class DeviceBaseline:
         }
         composite = sum(scores.get(k, 0) * w for k, w in weights.items())
 
+        # Use a higher threshold until we have enough observations to trust the baseline.
+        # This prevents noisy false positives during the learning phase.
+        threshold = 0.35 if self.is_fully_learned else 0.55
+
         return {
             "composite_score": round(composite, 4),
             "feature_scores": scores,
             "anomaly_details": details,
-            "is_anomalous": composite > 0.35,
+            "is_anomalous": composite > threshold,
             "severity": _severity_label(composite),
         }
 
