@@ -21,6 +21,71 @@ The average household has 10–15 smart IoT devices — cameras, baby monitors, 
 
 SHIELD-IoT is an **agentic AI system** that autonomously monitors, detects, and neutralises cyber threats targeting smart devices on a home network — with **zero technical knowledge required** from the user.
 
+---
+
+## Two Frontends, One Powerful Backend
+
+SHIELD-IoT ships with **two complete frontends** that both connect to the same Python backend, so you can monitor your network from anywhere:
+
+### 🖥️ Web Dashboard — React + TypeScript
+> For desktop/browser access — full feature set on a large screen.
+
+- Real-time threat monitoring with live WebSocket push updates
+- Security posture score (0–100, grade A–F) with factor breakdown
+- Live TCP connection table with country flags, ISP and process names
+- Per-device port scan results and anomaly history
+- Bandwidth chart (upload / download in KB/s)
+- IP Investigator — enter any IP and get geolocation, threat intel, open ports and active connections in one click
+- Attack simulation panel (demo mode)
+
+**Run it:**
+```bash
+cd frontend && npm install && npm run dev
+# Opens at http://localhost:5173
+```
+
+---
+
+### 📱 Mobile App — Flutter (Android & iOS)
+> For on-the-go monitoring — same data, optimised for your phone.
+
+- All six screens mirroring the web dashboard: Dashboard, Devices, Alerts, Traffic, IP Investigator, Settings
+- Security score arc gauge with live threat badge on the nav bar
+- Bandwidth line chart powered by fl_chart
+- Tap any device for a full detail bottom sheet including port scan summary
+- IP Investigator with quick-pick buttons for common LAN addresses
+- Configurable server URL — point the app at any machine running the backend on your local Wi-Fi
+- WebSocket real-time updates + 5-second auto-refresh
+- Supports Android (API 21+) and iOS (13+)
+
+**Run it:**
+```bash
+cd shield_iot_mobile && flutter pub get && flutter run
+# Set backend URL in Settings → e.g. http://192.168.1.x:8000
+```
+
+---
+
+### How They Connect
+
+```
+┌──────────────────────────┐        ┌────────────────────────────┐
+│   Web Dashboard          │        │   Mobile App               │
+│   React + TypeScript     │        │   Flutter (Android / iOS)  │
+│   http://localhost:5173  │        │   Any device on the LAN    │
+└───────────┬──────────────┘        └────────────┬───────────────┘
+            │  REST + WebSocket                   │  REST + WebSocket
+            └──────────────┬──────────────────────┘
+                           ▼
+              ┌────────────────────────┐
+              │   SHIELD-IoT Backend   │
+              │   FastAPI + Python     │
+              │   Real-time AI agent   │
+              └────────────────────────┘
+```
+
+Both frontends consume the **same REST API and WebSocket stream** — no duplication of logic, all intelligence lives in the backend.
+
 ### How It Works — Four Continuous Phases
 
 ```
@@ -59,46 +124,45 @@ SHIELD-IoT is an **agentic AI system** that autonomously monitors, detects, and 
 ## Quick Start
 
 ### Prerequisites
-- Python 3.11+
-- Node.js 18+
-- An [Anthropic API key](https://console.anthropic.com) *(optional — falls back to rule-based reasoning)*
+| Requirement | For |
+|---|---|
+| Python 3.11+ | Backend |
+| Node.js 18+ | Web frontend |
+| Flutter 3.35+ | Mobile app |
+| LLM API key | Optional — rule-based fallback built in |
 
-### Backend Setup
+### 1 — Start the Backend
 
 ```bash
 cd backend
 pip install -r requirements.txt
-cp .env.example .env
-# Add your API keys to .env (see .env.example for the full list)
-python main.py
+cp .env.example .env          # add your API keys
+python main.py                # starts at http://localhost:8000
 ```
 
-The API server starts at `http://localhost:8000`. OpenAPI docs at `/docs`.
-
-### Frontend Setup
+### 2a — Open the Web Dashboard
 
 ```bash
 cd frontend
 npm install
-npm run dev
+npm run dev                   # opens http://localhost:5173
 ```
 
-Dashboard opens at `http://localhost:5173`.
-
-### Mobile App (Flutter)
+### 2b — Run the Mobile App
 
 ```bash
 cd shield_iot_mobile
 flutter pub get
-flutter run
+flutter run                   # connects to http://10.0.2.2:8000 on emulator
+                              # change URL in Settings for a real device
 ```
 
-Set the server URL in the app's **Settings** tab to the IP of the machine running the backend.
+> You can run **both frontends at the same time** — they share the same backend.
 
 ### Running a Demo
 
-1. Start the backend — it immediately begins monitoring real network traffic
-2. Start the frontend and open the dashboard
+1. Start the backend — real network monitoring begins immediately
+2. Open the web dashboard **or** the mobile app (or both)
 3. Check the **Security Score** card to see your current network posture
 4. Use the **IP Investigator** to scan any device on your network
 5. Expand any alert to see the full **Agent Reasoning Chain**
