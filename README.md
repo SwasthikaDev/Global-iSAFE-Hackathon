@@ -7,7 +7,7 @@
 [![Python](https://img.shields.io/badge/Python-3.11+-green.svg)](https://python.org)
 [![React](https://img.shields.io/badge/React-18-blue.svg)](https://react.dev)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-teal.svg)](https://fastapi.tiangolo.com)
-[![Claude API](https://img.shields.io/badge/Claude-API-orange.svg)](https://anthropic.com)
+[![Flutter](https://img.shields.io/badge/Flutter-3.35-blue.svg)](https://flutter.dev)
 
 ---
 
@@ -29,12 +29,30 @@ SHIELD-IoT is an **agentic AI system** that autonomously monitors, detects, and 
 │                                                                  │
 │  1. OBSERVE ──► 2. REASON ──► 3. ACT ──► 4. EXPLAIN            │
 │                                                                  │
-│  Passive traffic    Claude API       Isolate device    Plain     │
-│  monitoring +       threat           Block traffic     language  │
-│  per-device         assessment       Log forensics     alert     │
+│  Passive traffic    LLM-based      Isolate device    Plain     │
+│  monitoring +       threat          Block traffic     language  │
+│  per-device         assessment      Log forensics     alert     │
 │  baseline                                                        │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## Screenshots
+
+![SHIELD-IoT Dashboard](img1.png)
+
+![Security Score & Devices](img2.png)
+
+![Live Connections](img3.png)
+
+![IP Investigator](img4.png)
+
+![Alerts Panel](img5.png)
+
+![Mobile App — Dashboard](img6.png)
+
+![Mobile App — Investigate](img7.png)
 
 ---
 
@@ -43,7 +61,7 @@ SHIELD-IoT is an **agentic AI system** that autonomously monitors, detects, and 
 ### Prerequisites
 - Python 3.11+
 - Node.js 18+
-- An [Anthropic API key](https://console.anthropic.com) (optional — falls back to rule-based reasoning)
+- An [Anthropic API key](https://console.anthropic.com) *(optional — falls back to rule-based reasoning)*
 
 ### Backend Setup
 
@@ -51,29 +69,38 @@ SHIELD-IoT is an **agentic AI system** that autonomously monitors, detects, and 
 cd backend
 pip install -r requirements.txt
 cp .env.example .env
-# Edit .env and add your ANTHROPIC_API_KEY
+# Add your API keys to .env (see .env.example for the full list)
 python main.py
 ```
 
-The API server starts at `http://localhost:8000`. OpenAPI docs at `http://localhost:8000/docs`.
+The API server starts at `http://localhost:8000`. OpenAPI docs at `/docs`.
 
 ### Frontend Setup
 
 ```bash
 cd frontend
 npm install
-cp .env.example .env
 npm run dev
 ```
 
 Dashboard opens at `http://localhost:5173`.
 
+### Mobile App (Flutter)
+
+```bash
+cd shield_iot_mobile
+flutter pub get
+flutter run
+```
+
+Set the server URL in the app's **Settings** tab to the IP of the machine running the backend.
+
 ### Running a Demo
 
-1. Start the backend — it immediately begins simulating 8 IoT devices
+1. Start the backend — it immediately begins monitoring real network traffic
 2. Start the frontend and open the dashboard
-3. In the **Attack Simulation** panel, click **Run** on any scenario
-4. Watch SHIELD-IoT detect the attack, reason about it, and autonomously isolate the device
+3. Check the **Security Score** card to see your current network posture
+4. Use the **IP Investigator** to scan any device on your network
 5. Expand any alert to see the full **Agent Reasoning Chain**
 
 ---
@@ -88,36 +115,49 @@ shield-iot/
 │   │   ├── monitor.py             # Core observe→reason→act→explain loop
 │   │   ├── baseline.py            # Per-device behavioural baseline (EMA)
 │   │   ├── anomaly_detector.py    # Isolation Forest + rule-based detection
-│   │   ├── reasoning_core.py      # Claude API agentic reasoning
+│   │   ├── reasoning_core.py      # LLM agentic reasoning
 │   │   ├── response_executor.py   # Autonomous response (isolate/block)
+│   │   ├── geo_lookup.py          # IP geolocation enrichment
+│   │   ├── port_scanner.py        # Async LAN port scanner
 │   │   └── threat_intel.py        # Live threat intelligence feeds
 │   ├── api/routes/
 │   │   ├── devices.py             # Device management endpoints
 │   │   ├── alerts.py              # Alert management endpoints
-│   │   └── network.py             # Network status + simulation
+│   │   ├── network.py             # Network status, score, bandwidth
+│   │   ├── connections.py         # Live TCP connection endpoint
+│   │   └── investigate.py         # IP investigation endpoint
 │   └── simulation/
 │       ├── network_sim.py         # Realistic IoT traffic simulation
 │       └── attack_sim.py          # Attack scenario engine
-└── frontend/
-    └── src/
-        ├── App.tsx                # Main dashboard
-        ├── components/            # UI components
-        └── hooks/useWebSocket.ts  # Real-time WebSocket connection
+├── frontend/
+│   └── src/
+│       ├── App.tsx                # Main dashboard
+│       ├── components/            # UI components
+│       └── hooks/useWebSocket.ts  # Real-time WebSocket connection
+└── shield_iot_mobile/             # Flutter mobile app
+    └── lib/
+        ├── main.dart
+        ├── screens/               # Dashboard, Devices, Alerts, Connections, Investigate
+        ├── services/              # API client + Provider state
+        └── widgets/               # Reusable UI components
 ```
 
 ### Technical Stack
 
 | Component | Technology |
 |-----------|-----------|
-| Agentic Reasoning | Claude API (claude-opus-4-5) |
+| Agentic Reasoning | LLM API (rule-based fallback included) |
 | Anomaly Detection | Isolation Forest (scikit-learn) |
 | Behavioural Baseline | Exponential Moving Average per device |
 | Backend API | FastAPI + WebSockets |
-| Traffic Monitoring | Passive metadata analysis (no payload) |
-| Threat Intelligence | AbuseIPDB, built-in IOC list |
+| Traffic Monitoring | psutil — OS-level TCP connection capture |
+| Device Discovery | ARP cache scan |
+| Geolocation | ip-api.com batch API |
+| Threat Intelligence | AbuseIPDB + built-in IOC list |
+| Port Scanning | Async TCP probe |
 | Frontend Dashboard | React 18 + TypeScript + Tailwind CSS |
-| Charts | Recharts |
-| Attack Response | Router API (OpenWrt/DD-WRT compatible) |
+| Mobile App | Flutter 3.35 (Android + iOS) |
+| Charts | Recharts (web), fl_chart (mobile) |
 
 ---
 
@@ -135,36 +175,25 @@ shield-iot/
 
 ## API Reference
 
-### Key Endpoints
+Full interactive docs are available at `/docs` once the backend is running.
 
-```
-GET  /api/devices/              List all network devices
-GET  /api/devices/{id}          Device detail + baseline
-POST /api/devices/{id}/restore  Restore isolated device
+### Endpoint Groups
 
-GET  /api/alerts/               List all security alerts
-GET  /api/alerts/{id}           Alert detail + reasoning chain
-POST /api/alerts/{id}/dismiss   Dismiss false positive
-GET  /api/alerts/reasoning/log  Full agent reasoning log
-
-GET  /api/network/status        Network health + agent metrics
-GET  /api/network/action-log    Autonomous action history
-GET  /api/network/threat-intelligence  Threat feed status
-
-POST /api/network/simulation/start/{id}  Start attack scenario
-POST /api/network/simulation/stop        Stop active scenario
-```
-
-Full OpenAPI spec: `http://localhost:8000/docs`
+- **`/api/devices/`** — device list, detail, port scan, baseline, isolation
+- **`/api/alerts/`** — alert list, detail, reasoning log, dismiss
+- **`/api/network/`** — status, security score, bandwidth history, threat intel, action log
+- **`/api/connections/`** — live TCP connection snapshot with geo enrichment
+- **`/api/investigate/{ip}`** — full parallel intelligence lookup for any IP
 
 ### WebSocket — Real-Time Events
 
-Connect to `ws://localhost:8000/ws` to receive:
+Connect to `ws://<host>/ws` to receive push events:
 
 ```json
-{ "type": "incident", "data": { ... alert object ... } }
-{ "type": "status_update", "data": { ... agent status ... } }
-{ "type": "heartbeat", "ts": "2026-04-06T..." }
+{ "type": "alert",         "data": { ... } }
+{ "type": "device_update", "data": { ... } }
+{ "type": "status_update", "data": { ... } }
+{ "type": "heartbeat",     "ts":   "..." }
 ```
 
 ---
@@ -175,21 +204,19 @@ SHIELD-IoT is designed with privacy as a core principle:
 
 - **Metadata only** — analyses packet headers, connection counts, and destination IPs. Never stores payload data.
 - **Local processing** — all baseline models and anomaly detection run locally on your hardware.
-- **Claude API** — only structured anomaly summaries (no raw traffic data) are sent for reasoning.
-- **No cloud dependency** — falls back to rule-based reasoning if the Claude API is unavailable.
+- **LLM API** — only structured anomaly summaries (no raw traffic data) are sent for reasoning.
+- **No cloud dependency** — falls back to rule-based reasoning if the LLM API is unavailable.
 - **Open source** — every line of code is auditable under the MIT Licence.
 
 ---
 
 ## Production Deployment
 
-See [`docs/deployment.md`](docs/deployment.md) for full ISP deployment guidance including:
+See [`docs/deployment.md`](docs/deployment.md) for full deployment guidance including:
 - Raspberry Pi 4 deployment (recommended for home use)
 - Docker Compose setup
 - OpenWrt router integration
-- Real passive traffic capture (replacing the simulator)
-
-![SHIELD-IoT Dashboard](img1.png)
+- Real passive traffic capture
 
 ---
 
