@@ -1,0 +1,38 @@
+name: shield_iot_mobile
+description: SHIELD-IoT — Agentic AI for Autonomous Home Network Defence (Mobile)
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # HTTP & WebSocket
+  http: ^1.2.2
+  web_socket_channel: ^3.0.1
+
+  # State management
+  provider: ^6.1.2
+
+  # Charts
+  fl_chart: ^0.70.2
+
+  # Persistent settings (server URL)
+  shared_preferences: ^2.3.2
+
+  # Date/time formatting
+  intl: ^0.19.0
+
+  # Icons
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
