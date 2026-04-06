@@ -12,6 +12,7 @@ from agent.monitor import (
 )
 from agent.baseline import baseline_manager
 from agent.response_executor import ResponseAction, response_executor
+from agent.port_scanner import get_scan_result, get_all_scan_results
 
 router = APIRouter(prefix="/devices", tags=["devices"])
 
@@ -22,11 +23,18 @@ class RestoreRequest(BaseModel):
 
 @router.get("/")
 async def list_devices():
-    """List all known devices on the network with their current status."""
+    """List all known devices with status and latest port scan results."""
     devices = get_all_devices()
     isolated = set(response_executor.get_isolated_devices())
     for device in devices:
         device["is_isolated"] = device["id"] in isolated
+        scan = get_scan_result(device["id"])
+        device["port_scan"] = {
+            "risk_level":      scan["risk_level"]   if scan else "unknown",
+            "open_port_count": scan["total_open"]   if scan else None,
+            "dangerous_ports": scan["dangerous_ports"] if scan else [],
+            "scan_time":       scan["scan_time"]    if scan else None,
+        }
     return {"devices": devices, "total": len(devices)}
 
 
@@ -76,3 +84,21 @@ async def get_device_baseline(device_id: str):
     if not baseline:
         raise HTTPException(status_code=404, detail=f"No baseline found for device {device_id}")
     return {"device_id": device_id, "baseline": baseline}
+
+
+@router.get("/{device_id}/ports")
+async def get_device_ports(device_id: str):
+    """Get the most recent port scan result for a device."""
+    result = get_scan_result(device_id)
+    if not result:
+        return {
+            "device_id": device_id,
+            "open_ports": [],
+            "dangerous_ports": [],
+            "risk_level": "unknown",
+            "scan_time": None,
+            "message": "No port scan results yet — scan runs on startup and every 5 minutes.",
+        }
+    return result
+
+

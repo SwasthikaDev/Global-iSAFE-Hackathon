@@ -2,6 +2,13 @@ export type Severity = "critical" | "high" | "medium" | "low";
 export type DeviceStatus = "online" | "isolated" | "threat" | "warning" | "offline";
 export type NetworkStatus = "secure" | "warning" | "threat" | "critical";
 
+export interface PortScanInfo {
+  risk_level: "none" | "low" | "medium" | "high" | "critical" | "unknown";
+  open_port_count: number | null;
+  dangerous_ports: { port: number; service: string; risk: string }[];
+  scan_time: string | null;
+}
+
 export interface Device {
   id: string;
   name: string;
@@ -15,6 +22,7 @@ export interface Device {
   threat_level: string;
   last_seen: string;
   is_isolated: boolean;
+  port_scan?: PortScanInfo;
 }
 
 export interface Alert {
@@ -39,6 +47,7 @@ export interface Alert {
   rule_matches: RuleMatch[];
   false_positive_probability: number;
   status: "active" | "dismissed";
+  threat_intel?: { is_malicious: boolean; details?: unknown };
 }
 
 export interface RuleMatch {
@@ -88,7 +97,61 @@ export interface AttackScenario {
 }
 
 export interface WSMessage {
-  type: "connected" | "incident" | "status_update" | "heartbeat" | "pong";
+  type: "connected" | "incident" | "status_update" | "heartbeat" | "pong" | "device_added";
   data?: unknown;
   ts?: string;
+}
+
+// ── New types for v2 features ─────────────────────────────────────────────────
+
+export interface LiveConnection {
+  local_port: number;
+  remote_ip: string;
+  remote_port: number;
+  hostname: string;
+  protocol: string;
+  process_name: string;
+  process_pid: number | null;
+  is_outbound: boolean;
+  is_private: boolean;
+  country: string;
+  country_name: string;
+  city: string;
+  isp: string;
+  flag: string;
+  is_high_risk_country: boolean;
+  is_suspicious_isp: boolean;
+  is_malicious_ip: boolean;
+  is_suspicious: boolean;
+}
+
+export interface ConnectionStats {
+  total: number;
+  external: number;
+  internal: number;
+  suspicious: number;
+  top_processes: { name: string; count: number }[];
+  top_countries: { code: string; count: number }[];
+  unique_remote_ips: number;
+}
+
+export interface BandwidthPoint {
+  ts: string;
+  sent_kbps: number;
+  recv_kbps: number;
+}
+
+export interface SecurityScoreFactor {
+  name: string;
+  deduction: number;
+  status: "pass" | "warn" | "fail";
+}
+
+export interface SecurityScore {
+  score: number;
+  grade: string;
+  color: string;
+  factors: SecurityScoreFactor[];
+  devices_scanned: number;
+  timestamp: string;
 }

@@ -34,12 +34,14 @@ logger.info(f"Mode: {'SIMULATION' if SIMULATION_MODE else 'REAL DATA'}")
 from agent.monitor import (
     get_agent_status,
     get_all_devices,
+    record_bandwidth,
     register_device,
     run_agent_loop,
     set_broadcast_callback,
     stop_agent,
 )
 from api.routes import alerts, devices, network
+from api.routes.connections import router as connections_router
 
 if SIMULATION_MODE:
     from simulation.attack_sim import advance_scenario
@@ -47,13 +49,14 @@ if SIMULATION_MODE:
 else:
     from agent.device_discovery import discover_devices
     from agent.real_monitor import real_monitor
+    from agent.geo_lookup import geo_background_task
+    from agent.port_scanner import scan_all_devices
 
 # WebSocket connection manager
 _ws_connections: Set[WebSocket] = set()
 
 
 async def broadcast(message: dict) -> None:
-    """Broadcast a message to all connected WebSocket clients."""
     global _ws_connections
     if not _ws_connections:
         return
@@ -67,7 +70,7 @@ async def broadcast(message: dict) -> None:
     _ws_connections -= dead
 
 
-# ── Traffic generator functions ───────────────────────────────────────────────
+# ── Traffic generator ─────────────────────────────────────────────────────────
 
 if SIMULATION_MODE:
     async def traffic_generator() -> list[dict]:
@@ -76,89 +79,93 @@ if SIMULATION_MODE:
 else:
     async def traffic_generator() -> list[dict]:
         current_devices = get_all_devices()
-        return await real_monitor.generate_traffic_samples(current_devices)
+        samples = await real_monitor.generate_traffic_samples(current_devices)
+        # Record bandwidth for the /network/bandwidth endpoint
+        s, r = real_monitor.get_bandwidth_delta()
+        record_bandwidth(s, r)
+        return samples
 
 
-# ── Device refresh (real mode only) ──────────────────────────────────────────
+# ── Background tasks (real mode only) ────────────────────────────────────────
 
 async def _refresh_real_devices() -> None:
-    """Periodically re-run ARP discovery to pick up new devices."""
+    """Re-discover ARP devices every 60 s."""
     while True:
-        await asyncio.sleep(60)  # re-scan every 60 s
+        await asyncio.sleep(60)
         try:
             fresh = discover_devices()
-            registered_ids = {d["id"] for d in get_all_devices()}
+            registered = {d["id"] for d in get_all_devices()}
             for device in fresh:
-                if device["id"] not in registered_ids:
+                if device["id"] not in registered:
                     register_device(device)
-                    logger.info(f"New device found: {device['name']} ({device['ip']})")
-                    if _broadcast_callback:
-                        await broadcast({
-                            "type": "device_added",
-                            "data": {"device": device},
-                        })
+                    logger.info(f"New device: {device['name']} ({device['ip']})")
+                    await broadcast({"type": "device_added", "data": {"device": device}})
         except Exception as exc:
             logger.warning(f"Device refresh error: {exc}")
 
-_broadcast_callback = broadcast  # store reference for refresh task
+
+async def _port_scan_loop() -> None:
+    """Initial port scan on startup then every 5 min."""
+    await asyncio.sleep(5)  # let devices register first
+    while True:
+        try:
+            await scan_all_devices(get_all_devices())
+        except Exception as exc:
+            logger.warning(f"Port scan error: {exc}")
+        await asyncio.sleep(300)  # 5 minutes
 
 
 # ── Lifespan ──────────────────────────────────────────────────────────────────
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application startup and shutdown."""
     logger.info("Starting SHIELD-IoT agent...")
+
+    background_tasks: list[asyncio.Task] = []
 
     if SIMULATION_MODE:
         for device in SIMULATED_DEVICES:
             register_device(device)
         logger.info(f"Simulation mode: {len(SIMULATED_DEVICES)} synthetic devices registered.")
     else:
-        # Clear stale ML model so it retrains on real data
         _clear_stale_models()
-
         real_devices = discover_devices()
         for device in real_devices:
             register_device(device)
-        logger.info(
-            f"Real-data mode: {len(real_devices)} device(s) discovered and registered."
-        )
+        logger.info(f"Real-data mode: {len(real_devices)} device(s) registered.")
+
+        # Start real-data background tasks
+        background_tasks.extend([
+            asyncio.create_task(_refresh_real_devices()),
+            asyncio.create_task(_port_scan_loop()),
+            asyncio.create_task(geo_background_task()),
+        ])
 
     set_broadcast_callback(broadcast)
-
     agent_task = asyncio.create_task(
         run_agent_loop(traffic_generator, interval_seconds=2.5)
     )
-
-    refresh_task = None
-    if not SIMULATION_MODE:
-        refresh_task = asyncio.create_task(_refresh_real_devices())
 
     yield
 
     logger.info("Shutting down SHIELD-IoT agent...")
     stop_agent()
-    agent_task.cancel()
-    if refresh_task:
-        refresh_task.cancel()
-    for t in [agent_task, refresh_task]:
-        if t:
-            try:
-                await t
-            except asyncio.CancelledError:
-                pass
+    for t in [agent_task, *background_tasks]:
+        t.cancel()
+        try:
+            await t
+        except asyncio.CancelledError:
+            pass
 
 
 def _clear_stale_models() -> None:
-    """Remove ML model files trained on simulated data so they rebuild on real traffic."""
     model_dir = os.path.join(os.path.dirname(__file__), "agent", "models")
     for fname in ("isolation_forest.joblib", "scaler.joblib"):
         path = os.path.join(model_dir, fname)
         if os.path.exists(path):
             try:
                 os.remove(path)
-                logger.info(f"Removed stale model file: {fname}")
+                logger.info(f"Removed stale model: {fname}")
             except OSError as exc:
                 logger.warning(f"Could not remove {fname}: {exc}")
 
@@ -180,9 +187,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(devices.router, prefix="/api")
-app.include_router(alerts.router, prefix="/api")
-app.include_router(network.router, prefix="/api")
+app.include_router(devices.router,     prefix="/api")
+app.include_router(alerts.router,      prefix="/api")
+app.include_router(network.router,     prefix="/api")
+app.include_router(connections_router, prefix="/api")
 
 
 @app.get("/")
@@ -201,38 +209,28 @@ async def root():
 async def health_check():
     status = get_agent_status()
     return {
-        "status": "healthy",
-        "mode": "simulation" if SIMULATION_MODE else "real",
+        "status":        "healthy",
+        "mode":          "simulation" if SIMULATION_MODE else "real",
         "agent_running": status["running"],
-        "timestamp": datetime.now().isoformat(),
+        "timestamp":     datetime.now().isoformat(),
         "uptime_cycles": status["cycle_count"],
     }
 
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    """
-    Real-time WebSocket endpoint.
-    Pushes live incident alerts, device status changes, and agent heartbeats.
-    """
     await websocket.accept()
     _ws_connections.add(websocket)
     logger.info(f"WebSocket connected. Total: {len(_ws_connections)}")
-
     try:
-        await websocket.send_text(
-            json.dumps(
-                {
-                    "type": "connected",
-                    "data": {
-                        "message": "Connected to SHIELD-IoT",
-                        "mode": "simulation" if SIMULATION_MODE else "real",
-                        "agent_status": get_agent_status(),
-                    },
-                },
-                default=str,
-            )
-        )
+        await websocket.send_text(json.dumps({
+            "type": "connected",
+            "data": {
+                "message":      "Connected to SHIELD-IoT",
+                "mode":         "simulation" if SIMULATION_MODE else "real",
+                "agent_status": get_agent_status(),
+            },
+        }, default=str))
 
         while True:
             try:

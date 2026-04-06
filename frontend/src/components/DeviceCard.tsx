@@ -76,6 +76,23 @@ export function DeviceCard({ device, onRestore, onClick }: Props) {
             <SeverityBadge severity={device.threat_level} />
           </div>
         )}
+        {device.port_scan && device.port_scan.scan_time && (
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-500">Ports</span>
+            <span className={`text-xs font-medium ${
+              device.port_scan.risk_level === "critical" ? "text-rose-700" :
+              device.port_scan.risk_level === "high"     ? "text-amber-700" :
+              device.port_scan.risk_level === "medium"   ? "text-yellow-700" :
+              device.port_scan.risk_level === "none"     ? "text-emerald-700" :
+              "text-slate-500"
+            }`}>
+              {device.port_scan.open_port_count ?? 0} open
+              {device.port_scan.risk_level !== "none" && device.port_scan.risk_level !== "unknown" && (
+                <span className="ml-1 opacity-70">({device.port_scan.risk_level})</span>
+              )}
+            </span>
+          </div>
+        )}
       </div>
 
       {device.is_isolated && (

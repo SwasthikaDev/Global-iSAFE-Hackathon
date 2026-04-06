@@ -51,7 +51,7 @@ PORT_PROTOCOLS: dict[int, str] = {
 
 # Max expected bytes per 2.5-second cycle by device type
 DEVICE_BYTE_LIMITS: dict[str, int] = {
-    "workstation": 200_000_000,   # 200 MB/cycle is extreme
+    "workstation": 200_000_000,
     "router": 500_000_000,
     "smart_tv": 50_000_000,
     "mobile": 20_000_000,
@@ -64,13 +64,24 @@ DEVICE_BYTE_LIMITS: dict[str, int] = {
     "unknown": 50_000_000,
 }
 
-# Simple LRU-style DNS cache
+# ── DNS resolution cache ──────────────────────────────────────────────────────
 _dns_cache: dict[str, tuple[str, float]] = {}
-_DNS_TTL = 300.0  # seconds
+_DNS_TTL = 300.0
+
+# ── Process name cache ────────────────────────────────────────────────────────
+_proc_cache: dict[int, str] = {}
+
+# ── Live snapshot shared with the connections API ─────────────────────────────
+_live_connections: list[dict] = []
+
+
+def get_live_connections() -> list[dict]:
+    """Return the most recent enriched connection snapshot."""
+    return list(_live_connections)
 
 
 def _resolve(ip: str) -> str:
-    """Cached, non-blocking reverse-DNS lookup."""
+    """Cached reverse-DNS lookup."""
     now = time.monotonic()
     cached = _dns_cache.get(ip)
     if cached and now - cached[1] < _DNS_TTL:
@@ -88,14 +99,14 @@ def _is_private(ip: str) -> bool:
     if len(parts) != 4:
         return False
     try:
-        first, second = int(parts[0]), int(parts[1])
+        a, b = int(parts[0]), int(parts[1])
     except ValueError:
         return False
     return (
-        first == 10
-        or (first == 172 and 16 <= second <= 31)
-        or (first == 192 and second == 168)
-        or first == 127
+        a == 10
+        or (a == 172 and 16 <= b <= 31)
+        or (a == 192 and b == 168)
+        or a == 127
     )
 
 
@@ -106,6 +117,26 @@ def _guess_protocol(ports: list[int]) -> str:
     return "TCP"
 
 
+def _get_process_name(pid: Optional[int]) -> str:
+    """Return process name for a PID, using a short-lived cache."""
+    if pid is None:
+        return "system"
+    cached = _proc_cache.get(pid)
+    if cached:
+        return cached
+    try:
+        name = psutil.Process(pid).name()
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        name = "unknown"
+    _proc_cache[pid] = name
+    # Evict old entries when cache grows large
+    if len(_proc_cache) > 500:
+        oldest = list(_proc_cache.keys())[:100]
+        for k in oldest:
+            _proc_cache.pop(k, None)
+    return name
+
+
 # ── Main monitor class ────────────────────────────────────────────────────────
 
 class RealTrafficMonitor:
@@ -113,25 +144,42 @@ class RealTrafficMonitor:
     Produces one traffic-sample dict per registered device every monitoring cycle.
     Samples share the same schema as the simulated traffic from network_sim.py,
     so the full detection pipeline (baseline → ML → rules → Claude) works unchanged.
+    Also maintains a live connection snapshot consumed by the /api/connections/ endpoint.
     """
 
     def __init__(self) -> None:
         self._last_io: Optional[psutil._common.snetio] = None
         self._last_io_time: float = 0.0
+        self._last_sent: int = 0
+        self._last_recv: int = 0
 
-    # ── Public API ────────────────────────────────────────────────────────────
+    def get_bandwidth_delta(self) -> tuple[int, int]:
+        """Return (bytes_sent_delta, bytes_recv_delta) since last call."""
+        return self._last_sent, self._last_recv
 
     async def generate_traffic_samples(self, devices: list[dict]) -> list[dict]:
         """Return one traffic-sample per device, built from live OS data."""
+        global _live_connections
+
         conns = self._snapshot_connections()
+        _live_connections = conns  # update shared snapshot
+
         sent_delta, recv_delta = self._io_delta()
+        self._last_sent, self._last_recv = sent_delta, recv_delta
         total_bytes = sent_delta + recv_delta
 
-        # Separate external and internal connections
+        # Enqueue external IPs for background geolocation
+        try:
+            from agent.geo_lookup import enqueue_ips
+            public_ips = [c["remote_ip"] for c in conns if not c["is_private"]]
+            if public_ips:
+                await enqueue_ips(public_ips)
+        except Exception:
+            pass
+
         ext_conns = [c for c in conns if not c["is_private"]]
         int_conns  = [c for c in conns if c["is_private"]]
 
-        # Group external connections by remote IP
         by_remote: dict[str, list[dict]] = defaultdict(list)
         for c in ext_conns:
             by_remote[c["remote_ip"]].append(c)
@@ -146,12 +194,10 @@ class RealTrafficMonitor:
             device_name = device.get("name", device_ip)
 
             if device_id == "local-machine":
-                # This PC: all outbound connections are "its" traffic
                 dev_ext  = ext_conns
                 dev_int  = int_conns
                 dev_bytes = total_bytes
             else:
-                # ARP peer: connections that reach this IP
                 dev_ext  = by_remote.get(device_ip, [])
                 dev_int  = [c for c in int_conns if c["remote_ip"] == device_ip]
                 ratio    = len(dev_ext) / total_ext
@@ -159,27 +205,19 @@ class RealTrafficMonitor:
 
             conn_count = len(dev_ext) + len(dev_int)
 
-            # Most-active remote IP and its hostname
             remote_ips = [c["remote_ip"] for c in dev_ext]
             top_ip     = max(set(remote_ips), key=remote_ips.count) if remote_ips else ""
             dest_host  = _resolve(top_ip) if top_ip else ""
 
-            # Protocol from most common destination port
             dest_ports  = [c["remote_port"] for c in dev_ext]
             protocol    = _guess_protocol(dest_ports)
 
-            # Unique destinations
             unique_ips   = len(set(c["remote_ip"]   for c in dev_ext))
             unique_ports = len(set(c["remote_port"] for c in dev_ext))
 
-            # Outbound ratio (ephemeral local port → remote service)
             outbound_count = sum(1 for c in dev_ext if c["is_outbound"])
             outbound_ratio = round(outbound_count / max(1, len(dev_ext)), 2)
 
-            # Connection regularity: how "regular" / repetitive the traffic pattern is.
-            # True C2 beacons have FEW unique IPs AND FEW unique ports.
-            # Normal browsing has MANY unique IPs → low regularity.
-            # Formula: product of (1 - ip_diversity) × (1 - port_diversity)
             ip_diversity   = unique_ips  / max(1, conn_count)
             port_diversity = unique_ports / max(1, conn_count)
             regularity = round(
@@ -217,10 +255,8 @@ class RealTrafficMonitor:
 
         return samples
 
-    # ── Internal helpers ──────────────────────────────────────────────────────
-
     def _snapshot_connections(self) -> list[dict]:
-        """Read all established TCP connections from the kernel."""
+        """Read all established TCP connections from the kernel, enriched with process names."""
         result: list[dict] = []
         try:
             for c in psutil.net_connections(kind="tcp"):
@@ -229,23 +265,27 @@ class RealTrafficMonitor:
                 if not c.raddr:
                     continue
                 rip = c.raddr.ip
-                # Skip loopback
                 if rip.startswith("127.") or rip == "::1":
                     continue
+
+                proc_name = _get_process_name(c.pid)
+                hostname  = _resolve(rip)
+
                 result.append(
                     {
-                        "local_ip":    c.laddr.ip,
-                        "local_port":  c.laddr.port,
-                        "remote_ip":   rip,
-                        "remote_port": c.raddr.port,
-                        "pid":         c.pid,
-                        # outbound = high-numbered ephemeral local port
-                        "is_outbound": c.laddr.port > 1023,
-                        "is_private":  _is_private(rip),
+                        "local_ip":     c.laddr.ip,
+                        "local_port":   c.laddr.port,
+                        "remote_ip":    rip,
+                        "remote_port":  c.raddr.port,
+                        "hostname":     hostname,
+                        "protocol":     PORT_PROTOCOLS.get(c.raddr.port, f"TCP:{c.raddr.port}"),
+                        "process_name": proc_name,
+                        "process_pid":  c.pid,
+                        "is_outbound":  c.laddr.port > 1023,
+                        "is_private":   _is_private(rip),
                     }
                 )
         except psutil.AccessDenied:
-            # Some connections may be hidden without admin; that's acceptable
             pass
         except Exception as exc:
             logger.debug(f"net_connections snapshot error: {exc}")

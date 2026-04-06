@@ -8,6 +8,7 @@ In production mode, consumes real passive traffic capture data.
 import asyncio
 import logging
 import os
+from collections import deque
 from datetime import datetime
 from typing import Callable, Optional
 
@@ -31,6 +32,9 @@ _agent_status = {
     "devices_isolated": 0,
     "start_time": None,
 }
+
+# Bandwidth history — last 60 cycles (~2.5 min at 2.5 s/cycle)
+_bandwidth_history: deque = deque(maxlen=60)
 
 # WebSocket broadcast callback (set by the API layer)
 _broadcast_callback: Optional[Callable] = None
@@ -82,6 +86,21 @@ def get_agent_status() -> dict:
         "total_devices": len(_devices),
         "total_alerts": len(_alerts),
     }
+
+
+def record_bandwidth(sent_bytes: int, recv_bytes: int, interval_s: float = 2.5) -> None:
+    """Record a bandwidth sample (bytes per cycle → converted to KB/s)."""
+    _bandwidth_history.append(
+        {
+            "ts":        datetime.now().isoformat(),
+            "sent_kbps": round(sent_bytes / 1024 / interval_s, 2),
+            "recv_kbps": round(recv_bytes / 1024 / interval_s, 2),
+        }
+    )
+
+
+def get_bandwidth_history() -> list[dict]:
+    return list(_bandwidth_history)
 
 
 async def process_traffic_sample(traffic_sample: dict) -> Optional[dict]:
