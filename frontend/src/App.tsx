@@ -11,6 +11,7 @@ import { ActionLog } from "./components/ActionLog";
 import { ConnectionsPanel } from "./components/ConnectionsPanel";
 import { BandwidthChart } from "./components/BandwidthChart";
 import { SecurityScore } from "./components/SecurityScore";
+import { IPInvestigator } from "./components/IPInvestigator";
 import type {
   Device,
   Alert,
@@ -321,6 +322,17 @@ export default function App() {
               )}
             </div>
           </div>
+        </div>
+
+        {/* IP Investigator — full-width section */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <h2 className="section-title text-base">IP Investigation Tool</h2>
+            <span className="text-xs text-slate-400 ml-2">
+              Lookup any IP — geolocation, threat intel, port scan, active connections
+            </span>
+          </div>
+          <IPInvestigator />
         </div>
 
         {/* Footer */}

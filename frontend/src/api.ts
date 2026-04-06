@@ -7,6 +7,7 @@ import type {
   ConnectionStats,
   BandwidthPoint,
   SecurityScore,
+  IPInvestigationResult,
 } from "./types";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
@@ -68,6 +69,10 @@ export const api = {
   // Connections (real-data mode)
   getConnections: () =>
     get<{ connections: LiveConnection[]; stats: ConnectionStats }>("/connections/"),
+
+  // IP Investigation
+  investigateIP: (ip: string) =>
+    get<IPInvestigationResult>(`/investigate/${encodeURIComponent(ip)}`),
 
   // Simulation
   getScenarios: () =>

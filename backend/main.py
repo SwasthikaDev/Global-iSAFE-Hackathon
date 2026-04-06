@@ -42,6 +42,7 @@ from agent.monitor import (
 )
 from api.routes import alerts, devices, network
 from api.routes.connections import router as connections_router
+from api.routes.investigate import router as investigate_router
 
 if SIMULATION_MODE:
     from simulation.attack_sim import advance_scenario
@@ -191,6 +192,7 @@ app.include_router(devices.router,     prefix="/api")
 app.include_router(alerts.router,      prefix="/api")
 app.include_router(network.router,     prefix="/api")
 app.include_router(connections_router, prefix="/api")
+app.include_router(investigate_router, prefix="/api")
 
 
 @app.get("/")

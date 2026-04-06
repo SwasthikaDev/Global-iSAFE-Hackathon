@@ -155,3 +155,56 @@ export interface SecurityScore {
   devices_scanned: number;
   timestamp: string;
 }
+
+// ── IP Investigation ──────────────────────────────────────────────────────────
+
+export interface IPInvestigationResult {
+  ip: string;
+  hostname: string;
+  is_private: boolean;
+  is_alive: boolean;
+  latency_ms: number | null;
+  scanned_at: string;
+  risk_level: "none" | "low" | "medium" | "high" | "critical";
+
+  // Geo
+  country: string;
+  country_name: string;
+  city: string;
+  isp: string;
+  org: string;
+  flag: string;
+  is_high_risk_country: boolean;
+  is_suspicious_isp: boolean;
+
+  // Threat
+  is_malicious: boolean;
+  threat_details: Record<string, unknown> | null;
+  threat_source: string;
+
+  // Ports
+  open_ports: { port: number; service: string; risk: string }[];
+  dangerous_ports: { port: number; service: string; risk: string }[];
+
+  // Connections
+  active_connections: {
+    local_port: number;
+    remote_ip: string;
+    remote_port: number;
+    protocol: string;
+    process_name: string;
+    hostname: string;
+  }[];
+  connection_count: number;
+
+  // Device
+  registered_device: {
+    id: string;
+    name: string;
+    type: string;
+    manufacturer: string;
+    mac: string;
+    status: string;
+    threat_level: string;
+  } | null;
+}
